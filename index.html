@@ -1442,8 +1442,26 @@
   function drawBar() {
     const c = document.getElementById('barCanvas');
     if (!c) return;
-    const days   = ['1/2','1/5','1/6','2/3','2/10','3/4','3/11','4/1','4/14','5/2'];
-    const values = [0,0,0,0,0,0,0,0,0,0];
+
+    // 현재 선택된 월 기준 최근 10 영업일 계산
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); // 0-indexed
+    const businessDays = [];
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    for(let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d);
+      const dow = date.getDay();
+      if(dow !== 0 && dow !== 6) businessDays.push(date);
+    }
+    const last10 = businessDays.slice(-10);
+    const days = last10.map(d => `${d.getMonth()+1}/${d.getDate()}`);
+
+    // tradeLog에서 해당 날짜 손익 집계
+    const values = last10.map(d => {
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      return tradeLog.filter(t => t.date === dateStr && t.pnl != null).reduce((s,t) => s+t.pnl, 0);
+    });
     const colors = values.map(v => v>0?'rgba(255,152,152,0.85)':v<0?'rgba(18,148,171,0.85)':'rgba(220,210,190,0.4)');
     if (window._bc) window._bc.destroy();
     window._bc = new Chart(c, {
@@ -1667,7 +1685,7 @@
         holdings.push({ id: h.id, ticker, market: buyMarket, broker, avgPrice: price, qty, totalInvested: price*qty });
       }
 
-      updateHoldingDropdown(); renderTradeTable(); renderHoldings();
+      updateHoldingDropdown(); renderTradeTable(); renderHoldings(); renderHomeSummary(); renderRecentTrades();
       alert(`✅ ${ticker} 매수 기록이 저장됐어요!`);
       ['buy-price','buy-qty','buy-fee','buy-memo'].forEach(id => document.getElementById(id).value='');
       calcBuy();
@@ -1713,8 +1731,7 @@
         await db.update('holdings', h.id, { qty: h.qty, total_invested: h.totalInvested });
       }
 
-      updateHoldingDropdown(); renderTradeTable(); renderHoldings();
-      const isPos = pnl >= 0;
+      updateHoldingDropdown(); renderTradeTable(); renderHoldings(); renderHomeSummary(); renderRecentTrades();
       alert(`✅ ${h.ticker} 매도 완료!\n손익: ${isPos?'+':''}${pnl.toLocaleString()}원`);
       ['sell-price','sell-qty','sell-fee','sell-memo'].forEach(id => document.getElementById(id).value='');
       document.getElementById('sell-holding').value='';
