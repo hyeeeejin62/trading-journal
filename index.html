@@ -566,11 +566,11 @@
         <div class="donut-wrap">
           <canvas id="donutCanvas" width="190" height="190"></canvas>
           <div class="donut-center">
-            <div class="donut-pct" id="donutPct">62.40%</div>
+            <div class="donut-pct" id="donutPct">0%</div>
             <div class="donut-divider"></div>
-            <div class="di-row"><span class="di-label">목표</span><span class="di-val" id="d-goal">500,000원</span></div>
-            <div class="di-row"><span class="di-label">실현</span><span class="di-val accent" id="d-real">312,000원</span></div>
-            <div class="di-row"><span class="di-label">잔여</span><span class="di-val" id="d-remain">188,000원</span></div>
+            <div class="di-row"><span class="di-label">목표</span><span class="di-val" id="d-goal">0원</span></div>
+            <div class="di-row"><span class="di-label">실현</span><span class="di-val accent" id="d-real">0원</span></div>
+            <div class="di-row"><span class="di-label">잔여</span><span class="di-val" id="d-remain">0원</span></div>
           </div>
         </div>
         <div class="goal-row">
@@ -592,30 +592,30 @@
     <div class="row2">
       <div class="summary-card">
         <div class="s-label">보유 종목 수</div>
-        <div class="s-value accent">7종목</div>
+        <div class="s-value accent" id="s-holdings">0종목</div>
       </div>
       <div class="summary-card">
         <div class="s-label">이번달 매수금액</div>
-        <div class="s-value">2,450,000원</div>
+        <div class="s-value" id="s-buy">0원</div>
       </div>
       <div class="summary-card">
         <div class="s-label">이번달 매도금액</div>
-        <div class="s-value">2,762,000원</div>
+        <div class="s-value" id="s-sell">0원</div>
       </div>
       <div class="summary-card">
         <div class="s-label">총 수익률</div>
-        <div class="s-value accent">+12.73%</div>
-        <div class="s-sub"><span class="up">▲ 전월비 +3.20%</span></div>
+        <div class="s-value accent" id="s-rate">—</div>
+        <div class="s-sub" id="s-rate-sub"></div>
       </div>
       <div class="summary-card">
         <div class="s-label">거래 횟수</div>
-        <div class="s-value">8회</div>
-        <div class="s-sub"><span class="ik">익절 6</span> / <span class="sj">손절 2</span></div>
+        <div class="s-value" id="s-count">0회</div>
+        <div class="s-sub" id="s-count-sub"></div>
       </div>
       <div class="summary-card">
         <div class="s-label">이번달 배당금</div>
-        <div class="s-value accent">45,000원</div>
-        <div class="s-sub"><span class="dn">▼ 전월비 -5,000원</span></div>
+        <div class="s-value accent" id="s-dividend">0원</div>
+        <div class="s-sub" id="s-dividend-sub"></div>
       </div>
     </div>
 
@@ -1390,11 +1390,10 @@
       renderDivPage();
       renderIsaPage();
       renderRecentTrades();
-      drawDonut(62.40);
+      renderHomeSummary();
       drawBar();
     } catch(e) {
       console.error(e);
-      // 데이터 없어도 UI는 렌더링
       drawDonut(0);
       drawBar();
       renderTradeTable();
@@ -1402,6 +1401,7 @@
       renderDone();
       renderDivPage();
       renderIsaPage();
+      renderHomeSummary();
     }
     hideLoading();
   }
@@ -1423,9 +1423,14 @@
   function recalc() {
     const raw = document.getElementById('goalInput').value.replace(/,/g,'');
     const goal = parseInt(raw) || 500000;
-    const real = 312000;
+    const sells = tradeLog.filter(t => {
+      const now = new Date();
+      const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+      return t.date && t.date.startsWith(thisMonth) && t.type==='sell' && t.pnl!=null;
+    });
+    const real = sells.reduce((s,t)=>s+t.pnl,0);
     const remain = Math.max(goal - real, 0);
-    const pct = (real / goal) * 100;
+    const pct = goal > 0 ? (real / goal) * 100 : 0;
     document.getElementById('donutPct').textContent  = pct.toFixed(2) + '%';
     document.getElementById('d-goal').textContent   = goal.toLocaleString() + '원';
     document.getElementById('d-real').textContent   = real.toLocaleString() + '원';
@@ -1911,6 +1916,59 @@
         ${val}
       </div>`;
     }).join('');
+  }
+
+  function renderHomeSummary() {
+    const now = new Date();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const lastMonth = (() => {
+      const d = new Date(now.getFullYear(), now.getMonth()-1, 1);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    })();
+
+    const thisMonthTrades = tradeLog.filter(t => t.date && t.date.startsWith(thisMonth));
+    const buyAmt  = thisMonthTrades.filter(t=>t.type==='buy').reduce((s,t)=>s+t.amount,0);
+    const sellAmt = thisMonthTrades.filter(t=>t.type==='sell').reduce((s,t)=>s+t.amount,0);
+    const sells   = thisMonthTrades.filter(t=>t.type==='sell'&&t.pnl!=null);
+    const totalPnl = sells.reduce((s,t)=>s+t.pnl,0);
+    const totalInvested = sells.reduce((s,t)=>s+(t.avgAtSell||t.price)*t.qty,0);
+    const rate = totalInvested > 0 ? (totalPnl/totalInvested*100) : null;
+    const ikjeol = sells.filter(t=>t.pnl>0).length;
+    const sonjeol = sells.filter(t=>t.pnl<0).length;
+
+    // 전월 수익률
+    const lastSells = tradeLog.filter(t=>t.date&&t.date.startsWith(lastMonth)&&t.type==='sell'&&t.pnl!=null);
+    const lastPnl = lastSells.reduce((s,t)=>s+t.pnl,0);
+    const lastInvested = lastSells.reduce((s,t)=>s+(t.avgAtSell||t.price)*t.qty,0);
+    const lastRate = lastInvested > 0 ? (lastPnl/lastInvested*100) : null;
+    const rateDiff = (rate!=null&&lastRate!=null) ? rate-lastRate : null;
+
+    // 배당금
+    const thisDivAmt = divLog.filter(d=>d.date&&d.date.startsWith(thisMonth)).reduce((s,d)=>s+d.amount,0);
+    const lastDivAmt = divLog.filter(d=>d.date&&d.date.startsWith(lastMonth)).reduce((s,d)=>s+d.amount,0);
+    const divDiff = thisDivAmt - lastDivAmt;
+
+    document.getElementById('s-holdings').textContent = holdings.length+'종목';
+    document.getElementById('s-buy').textContent = buyAmt.toLocaleString()+'원';
+    document.getElementById('s-sell').textContent = sellAmt.toLocaleString()+'원';
+    document.getElementById('s-rate').textContent = rate!=null ? (rate>=0?'+':'')+rate.toFixed(2)+'%' : '—';
+    document.getElementById('s-rate').style.color = rate>0?'var(--accent)':rate<0?'var(--loss)':'var(--text)';
+    document.getElementById('s-rate-sub').innerHTML = rateDiff!=null ? `<span class="${rateDiff>=0?'up':'dn'}">${rateDiff>=0?'▲':'▼'} 전월비 ${rateDiff>=0?'+':''}${rateDiff.toFixed(2)}%</span>` : '';
+    document.getElementById('s-count').textContent = sells.length+'회';
+    document.getElementById('s-count-sub').innerHTML = sells.length ? `<span class="ik">익절 ${ikjeol}</span> / <span class="sj">손절 ${sonjeol}</span>` : '';
+    document.getElementById('s-dividend').textContent = thisDivAmt.toLocaleString()+'원';
+    document.getElementById('s-dividend-sub').innerHTML = lastDivAmt||thisDivAmt ? `<span class="${divDiff>=0?'up':'dn'}">${divDiff>=0?'▲':'▼'} 전월비 ${divDiff>=0?'+':''}${Math.abs(divDiff).toLocaleString()}원</span>` : '';
+
+    // 도넛 실현손익으로 업데이트
+    const goal = parseInt((document.getElementById('goalInput').value||'0').replace(/,/g,''))||500000;
+    const real = totalPnl;
+    const remain = Math.max(goal-real,0);
+    const pct = goal>0?(real/goal*100):0;
+    document.getElementById('donutPct').textContent = pct.toFixed(2)+'%';
+    document.getElementById('d-goal').textContent = goal.toLocaleString()+'원';
+    document.getElementById('d-real').textContent = real.toLocaleString()+'원';
+    document.getElementById('d-remain').textContent = remain.toLocaleString()+'원';
+    drawDonut(pct);
   }
 
   function renderHoldings() {
