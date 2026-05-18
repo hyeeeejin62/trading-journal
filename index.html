@@ -1271,6 +1271,7 @@
 <div class="modal-overlay" id="modalOverlay" onclick="closeOnBg(event)">
   <div class="modal">
     <div class="modal-title">공모주 입력</div>
+    <div class="modal-field"><label class="modal-label">매도 날짜</label><input class="modal-input" id="ipoDate" type="date"></div>
     <div class="modal-field"><label class="modal-label">종목명</label><input class="modal-input" id="ipoName" placeholder="예) 케이뱅크" oninput="calcIpo()"></div>
     <div class="modal-field"><label class="modal-label">배정 주수</label><input class="modal-input" id="ipoQty" type="number" placeholder="예) 10" oninput="calcIpo()"></div>
     <div class="modal-field"><label class="modal-label">평단가 (원)</label><input class="modal-input" id="ipoAvg" type="number" placeholder="예) 9800" oninput="calcIpo()"></div>
@@ -1329,8 +1330,11 @@
 
   const db = {
     async get(table) {
-      const noDateTables = ['isa_holdings', 'isa_pnl', 'holdings', 'ipo_list'];
-      const order = table === 'monthly_goals' ? 'year_month.asc' : noDateTables.includes(table) ? 'created_at.asc' : 'date.asc';
+      const noDateTables = ['isa_holdings', 'isa_pnl', 'holdings'];
+      const order = table === 'monthly_goals' ? 'year_month.asc'
+                  : table === 'ipo_list' ? 'id.asc'
+                  : noDateTables.includes(table) ? 'created_at.asc'
+                  : 'date.asc';
       const fetchPromise = fetch(`${SUPABASE_URL}/rest/v1/${table}?order=${order}`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
       }).then(r => r.json());
@@ -1433,7 +1437,7 @@
       // 공모주 불러오기
       ipoList = Array.isArray(ipos) ? ipos.map(r => ({
         id: r.id, name: r.name, qty: r.qty, avg: r.avg_price,
-        sell: r.sell_price, profit: r.profit, rate: r.rate
+        sell: r.sell_price, profit: r.profit, rate: r.rate, date: r.date
       })) : [];
 
       updateHoldingDropdown();
@@ -1567,6 +1571,7 @@
   let ipoList = [];
   function openModal() {
     ['ipoName','ipoQty','ipoAvg','ipoSell'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('ipoDate').value = new Date().toISOString().slice(0,10);
     document.getElementById('ipoRate').textContent='— %'; document.getElementById('ipoRate').className='mc-value';
     document.getElementById('ipoProfit').textContent='— 원'; document.getElementById('ipoProfit').className='mc-value';
     document.getElementById('modalOverlay').classList.add('open');
@@ -1586,19 +1591,21 @@
     document.getElementById('ipoProfit').className='mc-value'+(isPos?'':' loss-c');
   }
   async function addIpo() {
+    const date=document.getElementById('ipoDate').value;
     const name=document.getElementById('ipoName').value.trim();
     const qty=parseFloat(document.getElementById('ipoQty').value);
     const avg=parseFloat(document.getElementById('ipoAvg').value);
     const sell=parseFloat(document.getElementById('ipoSell').value);
-    if(!name||!qty||!avg||!sell){alert('모든 항목을 입력해주세요');return;}
+    if(!date||!name||!qty||!avg||!sell){alert('모든 항목을 입력해주세요');return;}
     const profit=(sell-avg)*qty, rate=((sell-avg)/avg)*100;
     try {
-      const [row] = await db.insert('ipo_list', { name, qty, avg_price: avg, sell_price: sell, profit, rate });
-      ipoList.push({ id: row.id, name, qty, avg, sell, profit, rate });
+      const [row] = await db.insert('ipo_list', { name, qty, avg_price: avg, sell_price: sell, profit, rate, date });
+      ipoList.push({ id: row.id, name, qty, avg, sell, profit, rate, date });
     } catch(e) {
-      ipoList.push({ name, qty, avg, sell, profit, rate });
+      ipoList.push({ name, qty, avg, sell, profit, rate, date });
     }
     renderIpo(); closeModal();
+    renderHomeSummary();
   }
   async function deleteIpo(i) {
     const item = ipoList[i];
@@ -2079,7 +2086,8 @@
     const buyAmt  = thisMonthTrades.filter(t=>t.type==='buy').reduce((s,t)=>s+t.amount,0);
     const sellAmt = thisMonthTrades.filter(t=>t.type==='sell').reduce((s,t)=>s+t.amount,0);
     const sells   = thisMonthTrades.filter(t=>t.type==='sell'&&t.pnl!=null);
-    const totalPnl = sells.reduce((s,t)=>s+t.pnl,0);
+    const ipoPnl  = ipoList.filter(r=>r.date&&r.date.startsWith(thisMonth)).reduce((s,r)=>s+r.profit,0);
+    const totalPnl = sells.reduce((s,t)=>s+t.pnl,0) + ipoPnl;
     const totalInvested = sells.reduce((s,t)=>s+(t.avgAtSell||t.price)*t.qty,0);
     const rate = totalInvested > 0 ? (totalPnl/totalInvested*100) : null;
     const ikjeol = sells.filter(t=>t.pnl>0).length;
