@@ -1407,11 +1407,11 @@
 
       // 이번달 목표금액 불러오기
       const nowYM = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
-      const savedGoal = Array.isArray(goals) ? goals.find(g => g.year_month === nowYM) : null;
-      if (savedGoal) {
-        monthlyGoal = savedGoal.goal_amount;
-        document.getElementById('goalInput').value = monthlyGoal.toLocaleString();
+      if(Array.isArray(goals)) {
+        goals.forEach(g => { monthlyGoalsMap[g.year_month] = g.goal_amount; });
       }
+      monthlyGoal = monthlyGoalsMap[nowYM] || 0;
+      document.getElementById('goalInput').value = monthlyGoal ? monthlyGoal.toLocaleString() : '';
 
       tradeLog = trades.map(t => ({
         id: t.id, date: t.date, type: t.type, market: t.market,
@@ -1486,22 +1486,18 @@
     }
   }
 
+  let monthlyGoalsMap = {}; // { 'YYYY-MM': goal_amount }
+
   async function loadMonthlyGoal(ym) {
-    try {
-      const goals = await db.get('monthly_goals');
-      const saved = Array.isArray(goals) ? goals.find(g => g.year_month === ym) : null;
-      monthlyGoal = saved ? saved.goal_amount : 0;
-      document.getElementById('goalInput').value = monthlyGoal ? monthlyGoal.toLocaleString() : '';
-    } catch(e) {
-      monthlyGoal = 0;
-      document.getElementById('goalInput').value = '';
-    }
+    monthlyGoal = monthlyGoalsMap[ym] || 0;
+    document.getElementById('goalInput').value = monthlyGoal ? monthlyGoal.toLocaleString() : '';
   }
 
   async function recalc() {
     const raw = document.getElementById('goalInput').value.replace(/,/g,'');
     const goal = parseInt(raw) || 0;
     monthlyGoal = goal;
+    monthlyGoalsMap[selectedMonth] = goal;
     const now = new Date();
     const thisMonth = selectedMonth;
     const sells = tradeLog.filter(t => {
