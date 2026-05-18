@@ -1626,11 +1626,13 @@
   }
   function renderIpo(){
     const body=document.getElementById('ipoBody');
-    if(!ipoList.length){body.innerHTML='<div class="ipo-empty">이번달 공모주 내역이 없어요</div>';return;}
+    const filtered = ipoList.filter(r => r.date && r.date.startsWith(selectedMonth));
+    if(!filtered.length){body.innerHTML='<div class="ipo-empty">이번달 공모주 내역이 없어요</div>';return;}
     let html=`<table class="ipo-table"><thead><tr><th>종목명</th><th>주수</th><th>평단가</th><th>매도가</th><th>수익률</th><th>실현손익</th><th></th></tr></thead><tbody>`;
-    ipoList.forEach((r,i)=>{
+    filtered.forEach((r,i)=>{
+      const realIdx = ipoList.indexOf(r);
       const isPos=r.profit>=0,cls=isPos?'profit-c':'loss-c';
-      html+=`<tr><td>${r.name}</td><td>${r.qty}주</td><td>${r.avg.toLocaleString()}원</td><td>${r.sell.toLocaleString()}원</td><td class="${cls}">${isPos?'+':''}${r.rate.toFixed(2)}%</td><td class="${cls}">${isPos?'+':''}${r.profit.toLocaleString()}원</td><td><button class="ipo-del" onclick="deleteIpo(${i})">✕</button></td></tr>`;
+      html+=`<tr><td>${r.name}</td><td>${r.qty}주</td><td>${r.avg.toLocaleString()}원</td><td>${r.sell.toLocaleString()}원</td><td class="${cls}">${isPos?'+':''}${r.rate.toFixed(2)}%</td><td class="${cls}">${isPos?'+':''}${r.profit.toLocaleString()}원</td><td><button class="ipo-del" onclick="deleteIpo(${realIdx})">✕</button></td></tr>`;
     });
     html+='</tbody></table>'; body.innerHTML=html;
   }
@@ -1717,6 +1719,7 @@
     // 해당 월 목표금액 불러오기
     loadMonthlyGoal(selectedMonth);
     renderHomeSummary();
+    renderIpo();
     drawBar();
   });
 
