@@ -1383,14 +1383,22 @@
     showLoading('데이터 불러오는 중...');
     try {
       // 모든 테이블 병렬로 한번에 불러오기
-      const [trades, hold, done, divs, isa, isaP] = await Promise.all([
+      const [trades, hold, done, divs, isa, isaP, goals] = await Promise.all([
         db.get('trades'),
         db.get('holdings'),
         db.get('done_list'),
         db.get('dividends'),
         db.get('isa_holdings'),
-        db.get('isa_pnl')
+        db.get('isa_pnl'),
+        db.get('monthly_goals')
       ]);
+
+      // 이번달 목표금액 불러오기
+      const nowYM = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+      const savedGoal = Array.isArray(goals) ? goals.find(g => g.year_month === nowYM) : null;
+      if (savedGoal) {
+        document.getElementById('goalInput').value = savedGoal.goal_amount.toLocaleString();
+      }
 
       tradeLog = trades.map(t => ({
         id: t.id, date: t.date, type: t.type, market: t.market,
@@ -1458,12 +1466,12 @@
     }
   }
 
-  function recalc() {
+  async function recalc() {
     const raw = document.getElementById('goalInput').value.replace(/,/g,'');
     const goal = parseInt(raw) || 500000;
+    const now = new Date();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     const sells = tradeLog.filter(t => {
-      const now = new Date();
-      const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
       return t.date && t.date.startsWith(thisMonth) && t.type==='sell' && t.pnl!=null;
     });
     const real = sells.reduce((s,t)=>s+t.pnl,0);
@@ -1475,6 +1483,13 @@
     document.getElementById('d-remain').textContent = remain.toLocaleString() + '원';
     document.getElementById('goalInput').value      = goal.toLocaleString();
     drawDonut(pct);
+
+    // 목표금액 Supabase에 저장 (upsert: ym 기준)
+    try {
+      await db.upsert('monthly_goals', { year_month: thisMonth, goal_amount: goal }, 'year_month');
+    } catch(e) {
+      console.warn('목표금액 저장 실패:', e);
+    }
   }
 
   function drawBar() {
