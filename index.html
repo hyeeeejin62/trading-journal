@@ -1160,6 +1160,35 @@
   </main>
 </div>
 
+<!-- ISA 수정 모달 -->
+<div class="modal-overlay" id="isaEditOverlay" onclick="if(event.target.id==='isaEditOverlay')closeIsaEdit()">
+  <div class="modal" style="width:360px">
+    <div class="modal-title" id="isa-edit-title">✏️ 종목 수정</div>
+    <div class="modal-field"><label class="modal-label">종목명</label><input class="modal-input" type="text" id="isa-edit-ticker"></div>
+    <div class="modal-field"><label class="modal-label">평단가 (원)</label><input class="modal-input" type="number" id="isa-edit-price"></div>
+    <div class="modal-field"><label class="modal-label">수량 (주)</label><input class="modal-input" type="number" id="isa-edit-qty"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeIsaEdit()">취소</button>
+      <button class="btn-confirm" onclick="submitIsaEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 배당금 수정 모달 -->
+<div class="modal-overlay" id="divEditOverlay" onclick="if(event.target.id==='divEditOverlay')closeDivEdit()">
+  <div class="modal" style="width:360px">
+    <div class="modal-title">✏️ 배당금 수정</div>
+    <div class="modal-field"><label class="modal-label">날짜</label><input class="modal-input" type="date" id="div-edit-date"></div>
+    <div class="modal-field"><label class="modal-label">종목명</label><input class="modal-input" type="text" id="div-edit-ticker"></div>
+    <div class="modal-field"><label class="modal-label">배당금 (원)</label><input class="modal-input" type="number" id="div-edit-amount"></div>
+    <div class="modal-field"><label class="modal-label">메모 (선택)</label><input class="modal-input" type="text" id="div-edit-memo"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeDivEdit()">취소</button>
+      <button class="btn-confirm" onclick="submitDivEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- ISA 신규 종목 모달 -->
 <div class="modal-overlay" id="isaNewOverlay" onclick="if(event.target.id==='isaNewOverlay')closeIsaInput()">
   <div class="modal" style="width:360px">
@@ -1214,6 +1243,7 @@
 <!-- 배당 카드 컨텍스트 메뉴 -->
 <div class="div-card-menu" id="divCardMenu">
   <div class="dcm-item" id="dcm-pin-btn" onclick="dcmPin()">⭐ 고정하기</div>
+  <div class="dcm-item" onclick="dcmEdit()">✏️ 수정</div>
   <hr class="dcm-divider">
   <div class="dcm-item danger" onclick="dcmDelete()">🗑️ 삭제</div>
 </div>
@@ -2394,6 +2424,7 @@
     divCardMenu.classList.add('show');
   }
   function dcmPin()    { togglePin(dcmTicker); divCardMenu.classList.remove('show'); }
+  function dcmEdit()   { openDivEdit(dcmIdx); divCardMenu.classList.remove('show'); }
   function dcmDelete() { if(confirm('삭제할까요?')) { divLog.splice(dcmIdx,1); renderDivPage(); } divCardMenu.classList.remove('show'); }
   document.addEventListener('click', () => divCardMenu.classList.remove('show'));
 
@@ -2410,8 +2441,76 @@
   const ISA_COLORS = ['#FF9898','#FFB347','#7bc5d8','#88c98a','#b89fd4'];
 
   let isaHoldings = []; // { ticker, avgPrice, qty, totalInvested, colorIdx, history[] }
+  // ── ISA 수정 ──
+  let isaEditIdx = -1;
+  function openIsaEdit(i) {
+    isaEditIdx = i;
+    const h = isaHoldings[i];
+    document.getElementById('isa-edit-title').textContent = `✏️ ${h.ticker} 수정`;
+    document.getElementById('isa-edit-ticker').value = h.ticker;
+    document.getElementById('isa-edit-price').value  = h.avgPrice;
+    document.getElementById('isa-edit-qty').value    = h.qty;
+    document.getElementById('isaEditOverlay').classList.add('open');
+  }
+  function closeIsaEdit() { document.getElementById('isaEditOverlay').classList.remove('open'); }
+
+  async function submitIsaEdit() {
+    const h      = isaHoldings[isaEditIdx];
+    const ticker = document.getElementById('isa-edit-ticker').value.trim();
+    const price  = parseFloat(document.getElementById('isa-edit-price').value);
+    const qty    = parseFloat(document.getElementById('isa-edit-qty').value);
+    if(!ticker||!price||!qty){ alert('모든 항목을 입력해주세요!'); return; }
+    showLoading('저장 중...');
+    try {
+      await db.update('isa_holdings', h.id, { ticker, avg_price: price, qty, total_invested: price*qty });
+      h.ticker = ticker; h.avgPrice = price; h.qty = qty; h.totalInvested = price*qty;
+      closeIsaEdit(); renderIsaPage();
+    } catch(e) { alert('저장 실패!'); console.error(e); }
+    hideLoading();
+  }
+
+  async function deleteIsa(i) {
+    if(!confirm('삭제할까요?')) return;
+    const h = isaHoldings[i];
+    showLoading('삭제 중...');
+    try {
+      await db.delete('isa_holdings', h.id);
+      isaHoldings.splice(i, 1);
+      renderIsaPage();
+    } catch(e) { alert('삭제 실패!'); console.error(e); }
+    hideLoading();
+  }
+
+  // ── 배당금 수정 ──
+  let divEditIdx = -1;
+  function openDivEdit(i) {
+    divEditIdx = i;
+    const d = divLog[i];
+    document.getElementById('div-edit-date').value   = d.date;
+    document.getElementById('div-edit-ticker').value = d.ticker;
+    document.getElementById('div-edit-amount').value = d.amount;
+    document.getElementById('div-edit-memo').value   = d.memo || '';
+    document.getElementById('divEditOverlay').classList.add('open');
+  }
+  function closeDivEdit() { document.getElementById('divEditOverlay').classList.remove('open'); }
+
+  async function submitDivEdit() {
+    const d      = divLog[divEditIdx];
+    const date   = document.getElementById('div-edit-date').value;
+    const ticker = document.getElementById('div-edit-ticker').value.trim();
+    const amount = parseFloat(document.getElementById('div-edit-amount').value);
+    const memo   = document.getElementById('div-edit-memo').value.trim();
+    if(!date||!ticker||!amount){ alert('날짜, 종목명, 배당금은 필수예요!'); return; }
+    showLoading('저장 중...');
+    try {
+      await db.update('dividends', d.id, { date, ticker, amount, memo });
+      d.date = date; d.ticker = ticker; d.amount = amount; d.memo = memo;
+      closeDivEdit(); renderDivPage();
+    } catch(e) { alert('저장 실패!'); console.error(e); }
+    hideLoading();
+  }
+
   let isaTotalPnl = 0;
-  let isaEditIdx  = -1;
 
   function openIsaInput() {
     document.getElementById('isa-new-ticker').value = '';
@@ -2569,8 +2668,12 @@
     grid.innerHTML = isaHoldings.map((h,i) => {
       const unrealPnl  = 0; // 나중에 현재가 연동 시 계산
       const bg = ISA_COLORS[h.colorIdx];
-      return `<div class="isa-card" style="--isa-color:${bg}">
-        <div class="isa-card-ticker">${h.ticker}</div>
+      return `<div class="isa-card" style="--isa-color:${bg};position:relative">
+        <div style="position:absolute;top:10px;right:10px;display:flex;gap:4px">
+          <button onclick="openIsaEdit(${i})" style="background:rgba(255,255,255,0.5);border:none;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px">✏️</button>
+          <button onclick="deleteIsa(${i})" style="background:rgba(255,255,255,0.5);border:none;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px">🗑️</button>
+        </div>
+        <div class="isa-card-ticker" style="padding-right:60px">${h.ticker}</div>
         <div class="isa-card-stats">
           <div class="isa-card-row">
             <span class="isa-card-label">평단가</span>
