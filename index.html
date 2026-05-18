@@ -1397,7 +1397,8 @@
       const nowYM = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
       const savedGoal = Array.isArray(goals) ? goals.find(g => g.year_month === nowYM) : null;
       if (savedGoal) {
-        document.getElementById('goalInput').value = savedGoal.goal_amount.toLocaleString();
+        monthlyGoal = savedGoal.goal_amount;
+        document.getElementById('goalInput').value = monthlyGoal.toLocaleString();
       }
 
       tradeLog = trades.map(t => ({
@@ -1469,6 +1470,7 @@
   async function recalc() {
     const raw = document.getElementById('goalInput').value.replace(/,/g,'');
     const goal = parseInt(raw) || 500000;
+    monthlyGoal = goal;
     const now = new Date();
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     const sells = tradeLog.filter(t => {
@@ -1658,6 +1660,7 @@
   // ── 보유현황 (로컬 메모리) ──
   let holdings = []; // { ticker, market, broker, avgPrice, qty, totalInvested }
   let tradeLog = []; // 거래 원장
+  let monthlyGoal = 500000; // 이번달 목표금액 (DB에서 로드)
 
   function updateHoldingDropdown() {
     const sel = document.getElementById('sell-holding');
@@ -2066,7 +2069,7 @@
     document.getElementById('s-dividend-sub').innerHTML = lastDivAmt||thisDivAmt ? `<span class="${divDiff>=0?'up':'dn'}">${divDiff>=0?'▲':'▼'} 전월비 ${divDiff>=0?'+':''}${Math.abs(divDiff).toLocaleString()}원</span>` : '';
 
     // 도넛 실현손익으로 업데이트
-    const goal = parseInt((document.getElementById('goalInput').value||'0').replace(/,/g,''))||500000;
+    const goal = monthlyGoal;
     const real = totalPnl;
     const remain = Math.max(goal-real,0);
     const pct = goal>0?(real/goal*100):0;
