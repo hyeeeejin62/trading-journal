@@ -1453,6 +1453,7 @@
       renderDone();
       renderDivPage();
       renderIsaPage();
+      renderIpo();
       renderRecentTrades();
       renderHomeSummary();
       renderTodaySummary();
@@ -1615,6 +1616,7 @@
     }
     renderIpo(); closeModal();
     renderHomeSummary();
+    drawBar();
   }
   async function deleteIpo(i) {
     const item = ipoList[i];
