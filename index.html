@@ -584,7 +584,7 @@
         </div>
         <div class="goal-row">
           <span class="goal-label">이번달 목표</span>
-          <input class="goal-input" id="goalInput" value="500,000" onblur="recalc()" onkeydown="if(event.key==='Enter')recalc()">
+          <input class="goal-input" id="goalInput" placeholder="목표금액 입력" onblur="recalc()" onkeydown="if(event.key==='Enter')recalc()">
           <span style="font-size:13px;color:var(--muted)">원</span>
         </div>
       </div>
@@ -1329,8 +1329,8 @@
 
   const db = {
     async get(table) {
-      const noDateTables = ['isa_holdings', 'isa_pnl', 'holdings', 'monthly_goals'];
-      const order = noDateTables.includes(table) ? 'created_at.asc' : 'date.asc';
+      const noDateTables = ['isa_holdings', 'isa_pnl', 'holdings'];
+      const order = table === 'monthly_goals' ? 'year_month.asc' : noDateTables.includes(table) ? 'created_at.asc' : 'date.asc';
       const fetchPromise = fetch(`${SUPABASE_URL}/rest/v1/${table}?order=${order}`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
       }).then(r => r.json());
@@ -1469,7 +1469,7 @@
 
   async function recalc() {
     const raw = document.getElementById('goalInput').value.replace(/,/g,'');
-    const goal = parseInt(raw) || 500000;
+    const goal = parseInt(raw) || 0;
     monthlyGoal = goal;
     const now = new Date();
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
@@ -1660,7 +1660,7 @@
   // ── 보유현황 (로컬 메모리) ──
   let holdings = []; // { ticker, market, broker, avgPrice, qty, totalInvested }
   let tradeLog = []; // 거래 원장
-  let monthlyGoal = 500000; // 이번달 목표금액 (DB에서 로드)
+  let monthlyGoal = 0; // 이번달 목표금액 (DB에서 로드)
 
   function updateHoldingDropdown() {
     const sel = document.getElementById('sell-holding');
