@@ -1396,7 +1396,7 @@
         id: t.id, date: t.date, type: t.type, market: t.market,
         broker: t.broker, ticker: t.ticker, price: t.price, qty: t.qty,
         fee: t.fee, amount: t.amount, pnl: t.pnl, avgAtSell: t.avg_at_sell, memo: t.memo
-      })).sort((a,b) => a.date > b.date ? 1 : -1);
+      })).sort((a,b) => a.date < b.date ? 1 : -1);
 
       holdings = hold.map(h => ({
         id: h.id, ticker: h.ticker, market: h.market, broker: h.broker,
@@ -1510,7 +1510,7 @@
         plugins: { legend: { display: false } },
         scales: {
           x: { grid: { color: '#FFE99A' }, ticks: { font: { family:'Jua', size:11 }, color:'#9a8060' } },
-          y: { grid: { color: '#FFE99A' }, ticks: { font: { family:'Jua', size:11 }, color:'#9a8060', callback: v => v===0?'0':(v/10000).toFixed(0)+'만' } }
+          y: { grid: { color: '#FFE99A' }, ticks: { font: { family:'Jua', size:11 }, color:'#9a8060', stepSize: 20000, callback: v => v===0?'0':(v/10000).toFixed(0)+'만' } }
         }
       },
       plugins: [{
@@ -1705,7 +1705,7 @@
         price, qty, fee, amount:price*qty, pnl:null, memo
       });
       tradeLog.push({ ...trade, avgAtSell: trade.avg_at_sell });
-      tradeLog.sort((a,b) => a.date > b.date ? 1 : -1);
+      tradeLog.sort((a,b) => a.date < b.date ? 1 : -1);
 
       // 보유현황 업데이트
       const idx = holdings.findIndex(h => h.ticker === ticker && h.market === buyMarket);
@@ -1751,7 +1751,7 @@
         price, qty, fee, amount:price*qty, pnl, avg_at_sell:h.avgPrice, memo
       });
       tradeLog.push({ ...trade, avgAtSell: h.avgPrice });
-      tradeLog.sort((a,b) => a.date > b.date ? 1 : -1);
+      tradeLog.sort((a,b) => a.date < b.date ? 1 : -1);
 
       h.qty -= qty;
       if(h.qty === 0) {
@@ -1769,6 +1769,7 @@
         await db.update('holdings', h.id, { qty: h.qty, total_invested: h.totalInvested });
       }
 
+      const isPos = pnl >= 0;
       updateHoldingDropdown(); renderTradeTable(); renderHoldings(); renderHomeSummary(); renderRecentTrades(); renderTodaySummary();
       alert(`✅ ${h.ticker} 매도 완료!\n손익: ${isPos?'+':''}${pnl.toLocaleString()}원`);
       ['sell-price','sell-qty','sell-fee','sell-memo'].forEach(id => document.getElementById(id).value='');
@@ -1791,7 +1792,7 @@
     try {
       const [trade] = await db.insert('trades', { date, type:'etc', market:'—', broker:'—', ticker:'기타', price:null, qty:null, fee:0, amount, pnl, memo });
       tradeLog.push({ ...trade });
-      tradeLog.sort((a,b) => a.date > b.date ? 1 : -1);
+      tradeLog.sort((a,b) => a.date < b.date ? 1 : -1);
       renderTradeTable();
       alert('✅ 기타 기록이 저장됐어요!');
       document.getElementById('etc-amount').value='';
@@ -1868,7 +1869,21 @@
       : '<tr><td colspan="7" style="color:var(--muted);padding:20px 0">기타 내역이 없어요</td></tr>';
   }
 
-  function deleteTrade(i){ if(confirm('삭제할까요?')){ tradeLog.splice(i,1); renderTradeTable(); } }
+  async function deleteTrade(i) {
+    if(!confirm('삭제할까요?')) return;
+    const t = tradeLog[i];
+    showLoading('삭제 중...');
+    try {
+      await db.delete('trades', t.id);
+      tradeLog.splice(i, 1);
+      renderTradeTable();
+      renderHoldings();
+      renderHomeSummary();
+      renderRecentTrades();
+      renderTodaySummary();
+    } catch(e) { console.error(e); }
+    hideLoading();
+  }
 
   // ── 수정 모달 ──
   let editIdx = -1;
