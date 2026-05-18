@@ -1113,7 +1113,12 @@
       </div>
 
       <!-- 요약 카드 4개 -->
-      <div class="stats-summary">
+      <div class="stats-summary" style="grid-template-columns:repeat(5,1fr)">
+        <div class="card" style="text-align:center">
+          <div class="card-label">💰 총 실현수익</div>
+          <div class="card-value" id="stat-total-pnl">—</div>
+          <div class="stat-sub" id="stat-total-year"></div>
+        </div>
         <div class="card" style="text-align:center">
           <div class="card-label">평균 수익률</div>
           <div class="card-value" id="stat-avg-rate">—</div>
@@ -1330,9 +1335,11 @@
 
   const db = {
     async get(table) {
-      const noDateTables = ['isa_holdings', 'isa_pnl', 'holdings'];
+      const noDateTables = ['holdings'];
       const order = table === 'monthly_goals' ? 'year_month.asc'
                   : table === 'ipo_list' ? 'id.asc'
+                  : table === 'isa_holdings' ? 'id.asc'
+                  : table === 'isa_pnl' ? 'id.asc'
                   : noDateTables.includes(table) ? 'created_at.asc'
                   : 'date.asc';
       const fetchPromise = fetch(`${SUPABASE_URL}/rest/v1/${table}?order=${order}`, {
@@ -1537,7 +1544,9 @@
     // tradeLog에서 해당 날짜 손익 집계
     const values = last10.map(d => {
       const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      return tradeLog.filter(t => t.date === dateStr && t.pnl != null).reduce((s,t) => s+t.pnl, 0);
+      const tradePnl = tradeLog.filter(t => t.date === dateStr && t.pnl != null).reduce((s,t) => s+t.pnl, 0);
+      const ipoPnl   = ipoList.filter(r => r.date === dateStr).reduce((s,r) => s+r.profit, 0);
+      return tradePnl + ipoPnl;
     });
     const colors = values.map(v => v>0?'rgba(255,152,152,0.85)':v<0?'rgba(18,148,171,0.85)':'rgba(220,210,190,0.4)');
     if (window._bc) window._bc.destroy();
@@ -2590,6 +2599,16 @@
 
   function renderStatsPage() {
     const sells = tradeLog.filter(t => t.type === 'sell' && t.pnl != null);
+    const thisYear = new Date().getFullYear().toString();
+
+    // ── 총 실현수익 (올해, 공모주 포함) ──
+    const yearSellPnl = tradeLog.filter(t => t.type==='sell' && t.pnl!=null && t.date && t.date.startsWith(thisYear)).reduce((s,t)=>s+t.pnl, 0);
+    const yearIpoPnl  = ipoList.filter(r => r.date && r.date.startsWith(thisYear)).reduce((s,r)=>s+r.profit, 0);
+    const totalPnl = yearSellPnl + yearIpoPnl;
+    const totalEl = document.getElementById('stat-total-pnl');
+    totalEl.textContent = (totalPnl>=0?'+':'')+totalPnl.toLocaleString()+'원';
+    totalEl.style.color = totalPnl>0?'var(--accent)':totalPnl<0?'var(--loss)':'var(--text)';
+    document.getElementById('stat-total-year').textContent = thisYear+'년 누적';
 
     // ── 요약 카드 ──
     // 평균 수익률
