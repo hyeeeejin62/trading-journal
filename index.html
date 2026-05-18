@@ -1329,7 +1329,7 @@
 
   const db = {
     async get(table) {
-      const noDateTables = ['isa_holdings', 'isa_pnl', 'holdings'];
+      const noDateTables = ['isa_holdings', 'isa_pnl', 'holdings', 'monthly_goals'];
       const order = noDateTables.includes(table) ? 'created_at.asc' : 'date.asc';
       const fetchPromise = fetch(`${SUPABASE_URL}/rest/v1/${table}?order=${order}`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
@@ -1382,43 +1382,42 @@
   async function loadAllData() {
     showLoading('데이터 불러오는 중...');
     try {
-      // 매매내역 - 날짜 오름차순 (1일부터)
-      const trades = await db.get('trades');
+      // 모든 테이블 병렬로 한번에 불러오기
+      const [trades, hold, done, divs, isa, isaP] = await Promise.all([
+        db.get('trades'),
+        db.get('holdings'),
+        db.get('done_list'),
+        db.get('dividends'),
+        db.get('isa_holdings'),
+        db.get('isa_pnl')
+      ]);
+
       tradeLog = trades.map(t => ({
         id: t.id, date: t.date, type: t.type, market: t.market,
         broker: t.broker, ticker: t.ticker, price: t.price, qty: t.qty,
         fee: t.fee, amount: t.amount, pnl: t.pnl, avgAtSell: t.avg_at_sell, memo: t.memo
       })).sort((a,b) => a.date > b.date ? 1 : -1);
 
-      // 보유현황
-      const hold = await db.get('holdings');
       holdings = hold.map(h => ({
         id: h.id, ticker: h.ticker, market: h.market, broker: h.broker,
         avgPrice: h.avg_price, qty: h.qty, totalInvested: h.total_invested
       }));
 
-      // 매매완료 - 날짜 오름차순
-      const done = await db.get('done_list');
       doneList = done.map(d => ({
         id: d.id, ticker: d.ticker, market: d.market, broker: d.broker,
         avgPrice: d.avg_price, sellPrice: d.sell_price, qty: d.qty,
         pnl: d.pnl, rate: d.rate, date: d.date
       })).sort((a,b) => a.date > b.date ? 1 : -1);
 
-      // 배당금
-      const divs = await db.get('dividends');
       divLog = divs.map(d => ({
         id: d.id, date: d.date, ticker: d.ticker, amount: d.amount, memo: d.memo
-      })).reverse();
+      })).sort((a,b) => a.date > b.date ? 1 : -1);
       divPinned = new Set(divs.filter(d => d.pinned).map(d => d.ticker));
 
-      // ISA
-      const isa = await db.get('isa_holdings');
       isaHoldings = isa.map(h => ({
         id: h.id, ticker: h.ticker, avgPrice: h.avg_price, qty: h.qty,
         totalInvested: h.total_invested, colorIdx: h.color_idx, history: h.history||[]
       }));
-      const isaP = await db.get('isa_pnl');
       isaTotalPnl = isaP.length ? isaP[0].total_pnl : 0;
 
       updateHoldingDropdown();
@@ -2049,6 +2048,8 @@
   }
 
   function renderHoldings() {
+    const kr = holdings.filter(h => h.market==='KR');
+    const us = holdings.filter(h => h.market==='US');
 
     const makeRow = h => `<tr>
       <td>${h.ticker}</td>
