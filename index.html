@@ -2426,7 +2426,7 @@
   }
   function dcmPin()    { togglePin(dcmTicker); divCardMenu.classList.remove('show'); }
   function dcmEdit()   { openDivEdit(dcmIdx); divCardMenu.classList.remove('show'); }
-  function dcmDelete() { if(confirm('삭제할까요?')) { divLog.splice(dcmIdx,1); renderDivPage(); } divCardMenu.classList.remove('show'); }
+  async function dcmDelete() { divCardMenu.classList.remove('show'); await deleteDiv(dcmIdx); }
   document.addEventListener('click', () => divCardMenu.classList.remove('show'));
 
   async function deleteDiv(i) {
