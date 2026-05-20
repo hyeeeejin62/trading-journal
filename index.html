@@ -1532,7 +1532,7 @@
     const now = new Date();
     const thisMonth = selectedMonth;
     const sells = tradeLog.filter(t => {
-      return t.date && t.date.startsWith(thisMonth) && t.type==='sell' && t.pnl!=null;
+      return t.date && t.date.startsWith(thisMonth) && (t.type==='sell'||t.type==='etc') && t.pnl!=null;
     });
     const real = sells.reduce((s,t)=>s+t.pnl,0);
     const remain = Math.max(goal - real, 0);
@@ -1952,9 +1952,9 @@
   }
 
   function renderTradeTable() {
-    const kr  = tradeLog.map((t,i)=>({t,i})).filter(({t})=>t.market==='KR');
-    const us  = tradeLog.map((t,i)=>({t,i})).filter(({t})=>t.market==='US');
-    const etc = tradeLog.map((t,i)=>({t,i})).filter(({t})=>t.market==='—');
+    const kr  = tradeLog.map((t,i)=>({t,i})).filter(({t})=>t.market==='KR').sort((a,b)=>a.t.date>b.t.date?1:-1);
+    const us  = tradeLog.map((t,i)=>({t,i})).filter(({t})=>t.market==='US').sort((a,b)=>a.t.date>b.t.date?1:-1);
+    const etc = tradeLog.map((t,i)=>({t,i})).filter(({t})=>t.market==='—').sort((a,b)=>a.t.date>b.t.date?1:-1);
 
     // 국내
     document.getElementById('count-kr').textContent = kr.length+'건';
@@ -2099,7 +2099,7 @@
     const todayTrades = tradeLog.filter(t => t.date === todayStr);
     const buyAmt  = todayTrades.filter(t=>t.type==='buy').reduce((s,t)=>s+t.amount,0);
     const sellAmt = todayTrades.filter(t=>t.type==='sell').reduce((s,t)=>s+t.amount,0);
-    const pnl     = todayTrades.filter(t=>t.type==='sell'&&t.pnl!=null).reduce((s,t)=>s+t.pnl,0);
+    const pnl     = todayTrades.filter(t=>(t.type==='sell'||t.type==='etc')&&t.pnl!=null).reduce((s,t)=>s+t.pnl,0);
     const count   = todayTrades.filter(t=>t.type==='sell').length;
     const isPos   = pnl >= 0;
 
@@ -2126,13 +2126,13 @@
     const thisMonthTrades = tradeLog.filter(t => t.date && t.date.startsWith(thisMonth));
     const buyAmt  = thisMonthTrades.filter(t=>t.type==='buy').reduce((s,t)=>s+t.amount,0);
     const sellAmt = thisMonthTrades.filter(t=>t.type==='sell').reduce((s,t)=>s+t.amount,0);
-    const sells   = thisMonthTrades.filter(t=>t.type==='sell'&&t.pnl!=null);
+    const sells   = thisMonthTrades.filter(t=>(t.type==='sell'||t.type==='etc')&&t.pnl!=null);
     const ipoPnl  = ipoList.filter(r=>r.date&&r.date.startsWith(thisMonth)).reduce((s,r)=>s+r.profit,0);
     const totalPnl = sells.reduce((s,t)=>s+t.pnl,0) + ipoPnl;
-    const totalInvested = sells.reduce((s,t)=>s+(t.avgAtSell||t.price)*t.qty,0);
+    const totalInvested = sells.filter(t=>t.type==='sell').reduce((s,t)=>s+(t.avgAtSell||t.price)*t.qty,0);
     const rate = totalInvested > 0 ? (totalPnl/totalInvested*100) : null;
-    const ikjeol = sells.filter(t=>t.pnl>0).length;
-    const sonjeol = sells.filter(t=>t.pnl<0).length;
+    const ikjeol = sells.filter(t=>t.type==='sell'&&t.pnl>0).length;
+    const sonjeol = sells.filter(t=>t.type==='sell'&&t.pnl<0).length;
 
     // 전월 수익률
     const lastSells = tradeLog.filter(t=>t.date&&t.date.startsWith(lastMonth)&&t.type==='sell'&&t.pnl!=null);
@@ -2713,7 +2713,7 @@
     const thisYear = new Date().getFullYear().toString();
 
     // ── 총 실현수익 (올해, 공모주 포함) ──
-    const yearSellPnl = tradeLog.filter(t => t.type==='sell' && t.pnl!=null && t.date && t.date.startsWith(thisYear)).reduce((s,t)=>s+t.pnl, 0);
+    const yearSellPnl = tradeLog.filter(t => (t.type==='sell'||t.type==='etc') && t.pnl!=null && t.date && t.date.startsWith(thisYear)).reduce((s,t)=>s+t.pnl, 0);
     const yearIpoPnl  = ipoList.filter(r => r.date && r.date.startsWith(thisYear)).reduce((s,r)=>s+r.profit, 0);
     const totalPnl = yearSellPnl + yearIpoPnl;
     const totalEl = document.getElementById('stat-total-pnl');
