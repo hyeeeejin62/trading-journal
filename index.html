@@ -2816,11 +2816,8 @@
 
     // ── 종목별 TOP5 ──
     const tickerMap = {};
-    sells.forEach(t => {
+    tradeLog.filter(t => (t.type==='sell'||t.type==='etc') && t.pnl!=null).forEach(t => {
       tickerMap[t.ticker] = (tickerMap[t.ticker]||0) + t.pnl;
-    });
-    doneList.forEach(d => {
-      tickerMap[d.ticker] = (tickerMap[d.ticker]||0) + d.pnl;
     });
 
     const sorted = Object.entries(tickerMap).sort((a,b) => b[1]-a[1]).slice(0,5);
