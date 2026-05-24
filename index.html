@@ -2025,7 +2025,7 @@
     } else { pnlEl.textContent='—'; pnlEl.className='mc-value'; }
   }
 
-  function saveEdit() {
+  async function saveEdit() {
     const t = tradeLog[editIdx];
     const price = parseFloat(document.getElementById('edit-price').value)||t.price;
     const qty   = parseFloat(document.getElementById('edit-qty').value)||t.qty;
@@ -2037,7 +2037,19 @@
     t.amount = price * qty;
     t.memo   = document.getElementById('edit-memo').value.trim();
     if(t.type==='sell') t.pnl = (price-(t.avgAtSell||price))*qty - fee;
+    try {
+      await db.update('trades', t.id, {
+        date: t.date, ticker: t.ticker, broker: t.broker,
+        price: t.price, qty: t.qty, fee: t.fee,
+        amount: t.amount, pnl: t.pnl, memo: t.memo
+      });
+    } catch(e) {
+      console.error('거래 수정 저장 실패:', e);
+      alert('저장 중 오류가 발생했어요.');
+      return;
+    }
     renderTradeTable();
+    renderHomeSummary();
     closeEdit();
   }
 
