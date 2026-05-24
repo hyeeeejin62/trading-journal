@@ -2223,7 +2223,8 @@
     tbody.innerHTML = list.map(d => {
       const isPos = d.pnl >= 0;
       const flag  = d.market==='KR' ? '🇰🇷' : '🇺🇸';
-      return `<tr>
+      const rowBg = isPos ? 'background:#FFCAD5' : 'background:#AADBFF';
+      return `<tr style="${rowBg}">
         <td>${d.ticker}</td>
         <td>${flag}</td>
         <td>${d.avgPrice.toLocaleString()}원</td>
