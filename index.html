@@ -1982,13 +1982,57 @@
     try {
       await db.delete('trades', t.id);
       tradeLog.splice(i, 1);
+
+      // holdings 재계산
+      await recalcHoldings();
+
       renderTradeTable();
       renderHoldings();
       renderHomeSummary();
       renderRecentTrades();
       renderTodaySummary();
-    } catch(e) { console.error(e); }
+    } catch(e) { console.error(e); alert('삭제 중 오류가 발생했어요.'); }
     hideLoading();
+  }
+
+  // tradeLog 기준으로 holdings 전체 재계산 후 DB 업데이트
+  async function recalcHoldings() {
+    const map = {};
+    tradeLog.filter(t => t.market !== '—').forEach(t => {
+      const key = `${t.ticker}_${t.market}_${t.broker||''}`;
+      if(!map[key]) map[key] = { ticker: t.ticker, market: t.market, broker: t.broker||'', qty: 0, totalInvested: 0, id: null };
+      const h = map[key];
+      // 기존 holdings에서 id 가져오기
+      const exist = holdings.find(x => x.ticker===t.ticker && x.market===t.market);
+      if(exist) h.id = exist.id;
+      if(t.type==='buy') {
+        h.qty += t.qty;
+        h.totalInvested += t.amount;
+      } else if(t.type==='sell') {
+        h.qty -= t.qty;
+        h.totalInvested -= (exist ? exist.avgPrice : 0) * t.qty;
+      }
+    });
+
+    // 수량 0 이하는 제거, holdings 배열 갱신
+    const newHoldings = [];
+    for(const key of Object.keys(map)) {
+      const h = map[key];
+      if(h.qty <= 0) {
+        if(h.id) { try { await db.delete('holdings', h.id); } catch(e) {} }
+      } else {
+        h.avgPrice = h.totalInvested / h.qty;
+        if(h.id) {
+          await db.update('holdings', h.id, { avg_price: h.avgPrice, qty: h.qty, total_invested: h.totalInvested });
+        } else {
+          const [row] = await db.insert('holdings', { ticker: h.ticker, market: h.market, broker: h.broker, avg_price: h.avgPrice, qty: h.qty, total_invested: h.totalInvested });
+          h.id = row.id;
+        }
+        newHoldings.push({ id: h.id, ticker: h.ticker, market: h.market, broker: h.broker, avgPrice: h.avgPrice, qty: h.qty, totalInvested: h.totalInvested });
+      }
+    }
+    holdings = newHoldings;
+    updateHoldingDropdown();
   }
 
   // ── 수정 모달 ──
@@ -2050,6 +2094,8 @@
     }
     renderTradeTable();
     renderHomeSummary();
+    renderHoldings();
+    renderRecentTrades();
     closeEdit();
   }
 
