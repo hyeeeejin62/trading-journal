@@ -1182,9 +1182,9 @@
 <!-- ISA 수정 모달 -->
 <!-- 메모 모달 -->
 <div class="modal-overlay" id="memo-overlay" onclick="if(event.target.id==='memo-overlay')closeMemo()" style="z-index:1100">
-  <div class="modal" style="width:360px">
+  <div class="modal" style="width:680px;max-width:95vw">
     <div class="modal-title">📝 메모</div>
-    <textarea id="memo-text" style="width:100%;min-height:200px;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-family:'Jua',sans-serif;font-size:14px;color:var(--text);background:var(--box);resize:vertical;box-sizing:border-box" placeholder="자유롭게 메모하세요!"></textarea>
+    <textarea id="memo-text" style="width:100%;min-height:460px;border:1.5px solid var(--border);border-radius:10px;padding:12px;font-family:'Jua',sans-serif;font-size:14px;color:var(--text);background:var(--box);resize:vertical;box-sizing:border-box" placeholder="자유롭게 메모하세요!"></textarea>
     <div class="modal-btns" style="margin-top:12px">
       <button class="btn-cancel" onclick="closeMemo()">닫기</button>
       <button class="btn-confirm" onclick="saveMemo()">저장</button>
