@@ -1362,20 +1362,6 @@
 
 <!-- 거래내역 수정 모달 -->
 <div class="modal-overlay" id="editOverlay" onclick="closeEditOnBg(event)">
-
-<!-- 보유현황 수정 모달 -->
-<div class="modal-overlay" id="hedit-overlay" onclick="if(event.target.id==='hedit-overlay')closeHoldingEdit()" style="z-index:1100">
-  <div class="modal" style="width:340px">
-    <div class="modal-title">보유현황 수정</div>
-    <div class="modal-field"><label class="modal-label">종목명</label><input class="modal-input" type="text" id="hedit-ticker" readonly style="opacity:0.6"></div>
-    <div class="modal-field"><label class="modal-label">평단가 (원)</label><input class="modal-input" type="number" id="hedit-avg"></div>
-    <div class="modal-field"><label class="modal-label">수량 (주)</label><input class="modal-input" type="number" id="hedit-qty"></div>
-    <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeHoldingEdit()">취소</button>
-      <button class="btn-confirm" onclick="saveHoldingEdit()">저장</button>
-    </div>
-  </div>
-</div>
   <div class="modal" style="width:380px">
     <div class="modal-title">거래내역 수정</div>
     <div class="modal-field"><label class="modal-label">날짜</label><input class="modal-input" type="date" id="edit-date"></div>
@@ -1398,6 +1384,20 @@
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeEdit()">취소</button>
       <button class="btn-confirm" onclick="saveEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 보유현황 수정 모달 -->
+<div class="modal-overlay" id="hedit-overlay" onclick="if(event.target.id==='hedit-overlay')closeHoldingEdit()" style="z-index:1100">
+  <div class="modal" style="width:340px">
+    <div class="modal-title">보유현황 수정</div>
+    <div class="modal-field"><label class="modal-label">종목명</label><input class="modal-input" type="text" id="hedit-ticker" readonly style="opacity:0.6"></div>
+    <div class="modal-field"><label class="modal-label">평단가 (원)</label><input class="modal-input" type="number" id="hedit-avg"></div>
+    <div class="modal-field"><label class="modal-label">수량 (주)</label><input class="modal-input" type="number" id="hedit-qty"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeHoldingEdit()">취소</button>
+      <button class="btn-confirm" onclick="saveHoldingEdit()">저장</button>
     </div>
   </div>
 </div>
