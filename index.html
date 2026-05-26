@@ -853,6 +853,23 @@
           </div>
         </div>
       </div> <!-- trade-layout -->
+
+      <!-- 거래내역 필터/검색 -->
+      <div class="card" style="margin-bottom:12px;padding:14px 18px">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <div style="display:flex;gap:6px">
+            <button class="filter-btn active" id="tf-all"  onclick="setTradeFilter('all')" >전체</button>
+            <button class="filter-btn"         id="tf-buy"  onclick="setTradeFilter('buy')" >매수</button>
+            <button class="filter-btn"         id="tf-sell" onclick="setTradeFilter('sell')">매도</button>
+            <button class="filter-btn"         id="tf-etc"  onclick="setTradeFilter('etc')" >기타</button>
+          </div>
+          <div style="flex:1;min-width:160px;position:relative">
+            <input id="trade-search" type="text" placeholder="🔍 종목명 검색" oninput="renderTradeTable()"
+              style="width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-family:'Jua',sans-serif;font-size:14px;background:var(--box);color:var(--text)">
+          </div>
+        </div>
+      </div>
+
       <div style="display:flex;flex-direction:column;gap:12px">
 
         <!-- 국내주식 박스 -->
@@ -1880,10 +1897,19 @@
       const idx = holdings.findIndex(h => h.ticker === ticker && h.market === buyMarket);
       if(idx >= 0) {
         const h = holdings[idx];
-        const newTotal = h.totalInvested + price*qty;
-        const newQty   = h.qty + qty;
-        h.avgPrice = Math.round(newTotal / newQty);
-        h.qty = newQty; h.totalInvested = newTotal;
+        if(h.qty <= 0) {
+          // 전량 매도 후 재매수 → 평단 새로 시작
+          h.avgPrice = price;
+          h.qty = qty;
+          h.totalInvested = price * qty;
+        } else {
+          // 추가매수 → 평단 재계산
+          const newTotal = h.totalInvested + price * qty;
+          const newQty   = h.qty + qty;
+          h.avgPrice = Math.round(newTotal / newQty);
+          h.qty = newQty;
+          h.totalInvested = newTotal;
+        }
         await db.update('holdings', h.id, { avg_price: h.avgPrice, qty: h.qty, total_invested: h.totalInvested });
       } else {
         const [h] = await db.insert('holdings', {
@@ -2014,10 +2040,24 @@
     </tr>`;
   }
 
+  let tradeFilter = 'all';
+  function setTradeFilter(f) {
+    tradeFilter = f;
+    ['all','buy','sell','etc'].forEach(x => {
+      document.getElementById('tf-'+x).classList.toggle('active', x === f);
+    });
+    renderTradeTable();
+  }
   function renderTradeTable() {
-    const kr  = tradeLog.map((t,i)=>({t,i})).filter(({t})=>t.market==='KR').sort((a,b)=>a.t.date>b.t.date?1:-1);
-    const us  = tradeLog.map((t,i)=>({t,i})).filter(({t})=>t.market==='US').sort((a,b)=>a.t.date>b.t.date?1:-1);
-    const etc = tradeLog.map((t,i)=>({t,i})).filter(({t})=>t.market==='—').sort((a,b)=>a.t.date>b.t.date?1:-1);
+    const search = (document.getElementById('trade-search')?.value||'').trim().toLowerCase();
+    const filterFn = ({t}) => {
+      if(tradeFilter !== 'all' && t.type !== tradeFilter) return false;
+      if(search && !t.ticker.toLowerCase().includes(search)) return false;
+      return true;
+    };
+    const kr  = tradeLog.map((t,i)=>({t,i})).filter(({t})=>t.market==='KR').filter(filterFn).sort((a,b)=>a.t.date>b.t.date?1:-1);
+    const us  = tradeLog.map((t,i)=>({t,i})).filter(({t})=>t.market==='US').filter(filterFn).sort((a,b)=>a.t.date>b.t.date?1:-1);
+    const etc = tradeLog.map((t,i)=>({t,i})).filter(({t})=>t.market==='—').filter(filterFn).sort((a,b)=>a.t.date>b.t.date?1:-1);
 
     // 국내
     document.getElementById('count-kr').textContent = kr.length+'건';
