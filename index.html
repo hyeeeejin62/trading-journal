@@ -863,6 +863,10 @@
               </div>
             </div>
             <div class="form-field span2">
+              <label class="form-label">종목명</label>
+              <input type="text" class="form-input" id="etc-ticker" placeholder="예) 테슬라, NVDA (선택)">
+            </div>
+            <div class="form-field span2">
               <label class="form-label">금액 (원)</label>
               <input type="number" class="form-input" id="etc-amount" placeholder="0">
             </div>
@@ -987,10 +991,10 @@
             <div class="trade-table-wrap">
               <table class="trade-table">
                 <thead><tr>
-                  <th>날짜</th><th>구분</th><th>금액</th><th>손익</th><th>메모</th><th>수정</th><th>삭제</th>
+                  <th>날짜</th><th>구분</th><th>종목명</th><th>금액</th><th>손익</th><th>메모</th><th>수정</th><th>삭제</th>
                 </tr></thead>
                 <tbody id="tbody-etc">
-                  <tr><td colspan="7" style="color:var(--muted);padding:20px 0">기타 내역이 없어요</td></tr>
+                  <tr><td colspan="8" style="color:var(--muted);padding:20px 0">기타 내역이 없어요</td></tr>
                 </tbody>
               </table>
             </div>
@@ -2053,17 +2057,19 @@
     const date   = document.getElementById('etc-date').value;
     const amount = parseFloat(document.getElementById('etc-amount').value);
     const memo   = document.getElementById('etc-memo').value.trim();
+    const ticker = document.getElementById('etc-ticker').value.trim() || '기타';
     if(!date||!amount){ alert('날짜와 금액은 필수예요!'); return; }
     const pnl = etcType==='profit' ? amount : -amount;
     showLoading('저장 중...');
     try {
-      const [trade] = await db.insert('trades', { date, type:'etc', market:'—', broker:'—', ticker:'기타', price:null, qty:null, fee:0, amount, pnl, memo });
+      const [trade] = await db.insert('trades', { date, type:'etc', market:'—', broker:'—', ticker, price:null, qty:null, fee:0, amount, pnl, memo });
       tradeLog.push({ ...trade });
       tradeLog.sort((a,b) => a.date < b.date ? 1 : -1);
       renderTradeTable();
       alert('✅ 기타 기록이 저장됐어요!');
       document.getElementById('etc-amount').value='';
       document.getElementById('etc-memo').value='';
+      document.getElementById('etc-ticker').value='';
     } catch(e) { alert('저장 실패!'); console.error(e); }
     hideLoading();
   }
@@ -2091,6 +2097,7 @@
     if(isEtc) return `<tr>
       <td>${fmtDate(t.date)}</td>
       <td><span class="td-badge ${typeCls}">${typeLabel}</span></td>
+      <td>${t.ticker && t.ticker !== '기타' ? t.ticker : '<span style="color:var(--muted)">—</span>'}</td>
       <td>${t.amount.toLocaleString()}원</td>
       <td>${pnlStr}</td>
       <td>${memoBtn}</td>
@@ -2147,7 +2154,7 @@
     document.getElementById('count-etc').textContent = etc.length+'건';
     document.getElementById('tbody-etc').innerHTML = etc.length
       ? etc.map(({t,i})=>renderTradeRow(t,i,true)).join('')
-      : '<tr><td colspan="7" style="color:var(--muted);padding:20px 0">기타 내역이 없어요</td></tr>';
+      : '<tr><td colspan="8" style="color:var(--muted);padding:20px 0">기타 내역이 없어요</td></tr>';
   }
 
   async function deleteTrade(i) {
