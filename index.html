@@ -1513,6 +1513,7 @@
                   : table === 'ipo_list' ? 'id.asc'
                   : table === 'isa_holdings' ? 'id.asc'
                   : table === 'isa_pnl' ? 'id.asc'
+                  : table === 'app_memos' ? 'id.asc'
                   : noDateTables.includes(table) ? 'created_at.asc'
                   : 'date.asc';
       const fetchPromise = fetch(`${SUPABASE_URL}/rest/v1/${table}?order=${order}`, {
@@ -2446,13 +2447,10 @@
 
   // ── 메모 (Supabase 연동) ──
   async function openMemo() {
-    // Supabase에서 memo_key='memo1' 불러오기
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/app_memos?memo_key=eq.memo1&select=content`, {
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-      });
-      const rows = await res.json();
-      document.getElementById('memo-text').value = (rows && rows.length) ? rows[0].content : (localStorage.getItem('trading_memo') || '');
+      const rows = await db.get('app_memos');
+      const row = rows.find(r => r.memo_key === 'memo1');
+      document.getElementById('memo-text').value = row ? row.content : (localStorage.getItem('trading_memo') || '');
     } catch(e) {
       document.getElementById('memo-text').value = localStorage.getItem('trading_memo') || '';
     }
@@ -2465,33 +2463,22 @@
   }
   async function saveMemo() {
     const text = document.getElementById('memo-text').value;
-    localStorage.setItem('trading_memo', text); // 폴백용 로컬도 유지
+    localStorage.setItem('trading_memo', text);
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/app_memos?memo_key=eq.memo1`, {
-        method: 'DELETE',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-      });
-      await fetch(`${SUPABASE_URL}/rest/v1/app_memos`, {
-        method: 'POST',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ memo_key: 'memo1', content: text })
-      });
-    } catch(e) { console.warn('메모 저장 실패(Supabase), 로컬만 저장됨'); }
+      await db.upsert('app_memos', { memo_key: 'memo1', content: text }, 'memo_key');
+    } catch(e) { console.warn('메모 저장 실패(Supabase)'); }
     closeMemo();
   }
 
   // ── 메모2 (Supabase 연동) ──
   async function openMemo2() {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/app_memos?memo_key=eq.memo2&select=content`, {
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-      });
-      const rows = await res.json();
-      document.getElementById('memo2-text').value = (rows && rows.length) ? rows[0].content : '';
+      const rows = await db.get('app_memos');
+      const row = rows.find(r => r.memo_key === 'memo2');
+      document.getElementById('memo2-text').value = row ? row.content : '';
     } catch(e) {
       document.getElementById('memo2-text').value = '';
     }
-    // 아이콘 채우기
     document.getElementById('memo2-btn').textContent = '♥︎';
     document.getElementById('memo2-overlay').classList.add('open');
   }
@@ -2502,15 +2489,7 @@
   async function saveMemo2() {
     const text = document.getElementById('memo2-text').value;
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/app_memos?memo_key=eq.memo2`, {
-        method: 'DELETE',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-      });
-      await fetch(`${SUPABASE_URL}/rest/v1/app_memos`, {
-        method: 'POST',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ memo_key: 'memo2', content: text })
-      });
+      await db.upsert('app_memos', { memo_key: 'memo2', content: text }, 'memo_key');
     } catch(e) { console.warn('메모2 저장 실패'); }
     closeMemo2();
   }
