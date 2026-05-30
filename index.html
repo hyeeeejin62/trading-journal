@@ -2465,8 +2465,9 @@
     const text = document.getElementById('memo-text').value;
     localStorage.setItem('trading_memo', text);
     try {
-      await db.upsert('app_memos', { memo_key: 'memo1', content: text }, 'memo_key');
-    } catch(e) { console.warn('메모 저장 실패(Supabase)'); }
+      const result = await db.upsert('app_memos', { memo_key: 'memo1', content: text }, 'memo_key');
+      console.log('메모 저장 결과:', JSON.stringify(result));
+    } catch(e) { console.warn('메모 저장 실패(Supabase):', e); }
     closeMemo();
   }
 
