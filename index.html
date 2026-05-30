@@ -2449,9 +2449,11 @@
   async function openMemo() {
     try {
       const rows = await db.get('app_memos');
+      console.log('메모 불러오기 결과:', JSON.stringify(rows));
       const row = rows.find(r => r.memo_key === 'memo1');
       document.getElementById('memo-text').value = row ? row.content : (localStorage.getItem('trading_memo') || '');
     } catch(e) {
+      console.warn('메모 불러오기 실패:', e);
       document.getElementById('memo-text').value = localStorage.getItem('trading_memo') || '';
     }
     document.getElementById('memo1-btn').textContent = '♥︎';
