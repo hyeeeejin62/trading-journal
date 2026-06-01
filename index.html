@@ -1703,12 +1703,15 @@
     const [selYear, selMonthNum] = selectedMonth.split('-').map(Number);
     const year = selYear;
     const month = selMonthNum - 1; // 0-indexed
+    const today = new Date();
     const businessDays = [];
     const daysInMonth = new Date(year, month+1, 0).getDate();
     for(let d = 1; d <= daysInMonth; d++) {
       const date = new Date(year, month, d);
       const dow = date.getDay();
-      if(dow !== 0 && dow !== 6) businessDays.push(date);
+      // 선택한 달이 이번달이면 오늘까지만, 지난달이면 전체
+      const isCurrentMonth = (year === today.getFullYear() && month === today.getMonth());
+      if(dow !== 0 && dow !== 6 && (!isCurrentMonth || date <= today)) businessDays.push(date);
     }
     const last10 = businessDays.slice(-10);
     const days = last10.map(d => `${d.getMonth()+1}/${d.getDate()}`);
@@ -1975,7 +1978,7 @@
       if(idx >= 0) {
         const h = holdings[idx];
         if(h.qty <= 0) {
-          // 전량 매도 후 재매수 → 평단 새로 시작
+          // 전량 매도 후 재매수 → 평단/수량/투자금 완전 초기화
           h.avgPrice = price;
           h.qty = qty;
           h.totalInvested = price * qty;
@@ -1985,7 +1988,7 @@
           const newQty   = h.qty + qty;
           h.avgPrice = Math.round(newTotal / newQty);
           h.qty = newQty;
-          h.totalInvested = newTotal;
+          h.totalInvested = h.avgPrice * newQty;
         }
         await db.update('holdings', h.id, { avg_price: h.avgPrice, qty: h.qty, total_invested: h.totalInvested });
       } else {
@@ -2037,6 +2040,7 @@
         await db.delete('holdings', h.id);
         holdings.splice(parseInt(idx), 1);
       } else {
+        // 부분 매도 → 남은 수량 기준으로 totalInvested 재계산
         h.totalInvested = h.avgPrice * h.qty;
         await db.update('holdings', h.id, { qty: h.qty, total_invested: h.totalInvested });
       }
@@ -2449,12 +2453,10 @@
   async function openMemo() {
     try {
       const rows = await db.get('app_memos');
-      console.log('메모 불러오기 결과:', JSON.stringify(rows));
       const row = rows.find(r => r.memo_key === 'memo1');
-      document.getElementById('memo-text').value = row ? row.content : (localStorage.getItem('trading_memo') || '');
+      document.getElementById('memo-text').value = row ? row.content : '';
     } catch(e) {
-      console.warn('메모 불러오기 실패:', e);
-      document.getElementById('memo-text').value = localStorage.getItem('trading_memo') || '';
+      document.getElementById('memo-text').value = '';
     }
     document.getElementById('memo1-btn').textContent = '♥︎';
     document.getElementById('memo-overlay').classList.add('open');
@@ -2465,10 +2467,8 @@
   }
   async function saveMemo() {
     const text = document.getElementById('memo-text').value;
-    localStorage.setItem('trading_memo', text);
     try {
-      const result = await db.upsert('app_memos', { memo_key: 'memo1', content: text }, 'memo_key');
-      console.log('메모 저장 결과:', JSON.stringify(result));
+      await db.upsert('app_memos', { memo_key: 'memo1', content: text }, 'memo_key');
     } catch(e) { console.warn('메모 저장 실패(Supabase):', e); }
     closeMemo();
   }
