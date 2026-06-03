@@ -1914,7 +1914,7 @@
       .map((h, i) => ({ h, i }))
       .sort((a, b) => a.h.ticker.localeCompare(b.h.ticker, 'ko'));
     sorted.forEach(({ h, i }) => {
-      sel.innerHTML += `<option value="${i}">${h.ticker} (평단 ${h.avgPrice.toLocaleString()}원 / ${h.qty}주)</option>`;
+      sel.innerHTML += `<option value="${i}">${h.ticker} [${h.broker}] (평단 ${h.avgPrice.toLocaleString()}원 / ${h.qty}주)</option>`;
     });
   }
 
@@ -1974,7 +1974,7 @@
       tradeLog.sort((a,b) => a.date < b.date ? 1 : -1);
 
       // 보유현황 업데이트
-      const idx = holdings.findIndex(h => h.ticker === ticker && h.market === buyMarket);
+      const idx = holdings.findIndex(h => h.ticker === ticker && h.market === buyMarket && h.broker === broker);
       if(idx >= 0) {
         const h = holdings[idx];
         if(h.qty <= 0) {
